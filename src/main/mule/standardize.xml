@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+
+	<flow name="getAmerican" doc:id="9f9e6fef-5d73-429b-bb7c-9f32ffba48bc" >
+		<http:request method="GET" doc:name="Get American Flights" doc:id="9e23c7a9-e43b-43a4-b839-46a120c9a9ab" config-ref="HTTP_Request_American" path="${american.path}">
+		</http:request>
+		<choice doc:name="Choice" doc:id="b12fadf0-edb9-4c7d-a895-67b9e148e23a" >
+			<when expression="#[not isEmpty(payload)]" >
+				<ee:transform doc:name="Transform Message" doc:id="283868c6-1fe6-4552-a1bc-39c55328684b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ((flight,index) ->
+	{
+		airline: "American",
+		code: upper (flight.code),
+		price: flight.price,
+		departureDate: flight.departureDate as DateTime as String {format: "YYYY/MM/dd"},
+		fromAirport: flight.origin,
+		toAirport: flight.destination,
+		plane: flight.plane['type'],
+		emptySeats: flight.emptySeats,
+		totalSeats: flight.plane.totalSeats
+	}
+)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<set-payload value='#[
+    [
+      {"message": "American payload is empty"}
+    ]
+]' doc:name="Default message" doc:id="2ae1468a-ec95-4383-a89e-22957aa09e5d" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getUnited" doc:id="bb5b84aa-df6b-4e13-be74-375bce1db7df" >
+		<http:request method="GET" doc:name="Get United Flights" doc:id="ff859208-c4cf-40b6-a274-08a7d3fc8685" config-ref="HTTP_Request_United" path="${united.path}/{destinationCode}">
+			<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	agent : vars.agencyID
+}]]]></http:headers>
+		<http:uri-params ><![CDATA[#[output applicaton/java
+---
+{
+	destinationCode : vars.destinationCode
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output applicaton/java
+---
+{
+	destination : vars.destinationCode
+}]]]></http:query-params>
+		</http:request>
+		<choice doc:name="Choice" doc:id="4a063fd9-266c-4d5e-bab0-ff782106d63d" >
+			<when expression="#[if (sizeOf(payload.flights) &lt; 3) false else true]" >
+				<ee:transform doc:name="Transform Message" doc:id="3a9cffbf-4240-480c-89d8-d9a81f62a919">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+payload.flights map((flight,index) ->
+	{
+		airline: flight.airlineName,
+		code: upper(flight.code),
+		price: flight.price,
+		departureDate: flight.departureDate,
+		fromAirport: flight.origin,
+		toAirport: flight.destination,
+		plane: flight.planeType,
+		emptySeats: flight.emptySeats,
+		totalSeats: 300
+	}
+)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<set-payload value='#[
+	[
+		{message: "United payload less than 3 elements"},
+		{unitedPayload: payload}
+	]
+]' doc:name="Default message" doc:id="4460692f-984a-40ca-8e97-39fc75c0a9d7" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getDelta"  >
+		<http:listener doc:name="Listener" config-ref="HTTP_Listener_config" path="/testDelta" />
+		<set-variable value="SFO"   variableName="destination" doc:name="Set Variable"/>
+		<ee:transform doc:name="Build SOAP request"  doc:id="091f9978-aeaf-4531-910d-b8d08228b7fa">
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://soap.training.mulesoft.com/
+---
+{
+	ns0#findFlight: {
+		destination: vars.destination
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume operation="findFlight" doc:name="Consume" config-ref="Web_Service_Delta" targetValue="#[payload.body]" target="payloadBody"/>
+		<logger level="INFO" doc:name="Logger" doc:id="89c60282-ff35-4c5a-8f60-edaf6f2fc5e9" message="#[vars.payloadBody]"/>
+	</flow>
+</mule>

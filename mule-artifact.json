@@ -1,0 +1,22 @@
+{
+  "configs": [
+    "gatherdata.xml",
+    "global.xml",
+    "standardize.xml"
+  ],
+  "secureProperties": [],
+  "redeploymentEnabled": true,
+  "name": "gather-data",
+  "minMuleVersion": "4.1.0",
+  "requiredProduct": "MULE_EE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedResources": []
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}

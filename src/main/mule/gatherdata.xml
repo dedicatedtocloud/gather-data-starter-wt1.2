@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<flow name="postData" doc:id="18ec935c-9748-466e-9604-e33082ecc234" >
+		<http:listener doc:name="Listener" doc:id="a5b3b867-9dee-4113-bbec-7ffe5145ccbc" config-ref="HTTP_Listener_config" path="/post" allowedMethods="POST">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload..*account.@id]]]></http:body>
+			</http:response>
+
+		</http:listener>
+		<set-variable value="world!" doc:name="Set Variable" doc:id="2c2b98c8-a330-4c5a-9dd6-c7857d785262" variableName="hello" />
+		<logger level="INFO" doc:name="Logger" doc:id="c94abf96-fcde-44fa-8085-29202572cdf0" message="#[payload]"/>
+	</flow>
+	<flow name="gatherData" doc:id="b370431e-7c48-4222-8759-0f238c5f0965" >
+		<http:listener doc:name="Listener" doc:id="b8e62e70-a159-4922-b10b-e13e4ea13965" config-ref="HTTP_Listener_config" path="/gather/{destination}" allowedMethods="GET">
+			<http:response >
+				<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	SERVICEROUTE : vars.serverID
+}]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<set-variable value="#[attributes.uriParams.destination]" doc:name="destinationCode" doc:id="4d5e59f7-1897-4178-bc13-72aa0f120a08" variableName="destinationCode"/>
+		<set-variable value="#[attributes.queryParams.maxprice]" doc:name="maxPrice" doc:id="8d6960c3-3f93-4767-ab1a-fde7ca154550" variableName="maxPrice"/>
+		<set-variable value="#[attributes.headers.agencyid]" doc:name="agencyID" doc:id="9ca81fc9-2c37-4860-bad9-68e09bb1f329" variableName="agencyID"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="5529d0bf-9c13-4d54-a152-b1d575e7468d" >
+			<route >
+				<flow-ref doc:name="getAmerican" doc:id="1af0bf74-b233-4866-82e8-bd37052d1ff3" name="getAmerican"/>
+				<!--  
+				<http:request method="GET" doc:name="Get American Flights" doc:id="0d873d51-7fa3-4085-a80d-114b9ef03462" config-ref="HTTP_Request_American" path="${american.path}"/>
+				-->
+			</route>
+			<route >
+				<flow-ref doc:name="getUnited" doc:id="a7746b15-72ff-4d6a-96cb-6c540906e3d9" name="getUnited"/>
+				<!--  
+				<http:request method="GET" doc:name="Get United Flights" doc:id="7245a837-2d0f-4d30-bf1d-cfdfeb6a2c62" config-ref="HTTP_Request_United" path="${united.path}"/>
+				-->
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Convert to JSON" doc:id="b52fde50-0a36-48f0-9c50-c9393f6ef688" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+flatten (payload..payload as Array) filter $.price <= vars.maxPrice]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value='#[vars.agencyID as String ++ "- 42JDKFS"]' doc:name="Set Variable" doc:id="1d701a6d-3832-42ea-a621-098b8ce6224c" variableName="serverID"/>
+	
+</flow>
+</mule>
